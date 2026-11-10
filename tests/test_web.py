@@ -127,3 +127,56 @@ class TestStatusNote(unittest.TestCase):
         self.assertEqual(note["tone"], "danger")
         self.assertIn("Cutoff", note["text"])
         self.assertNotIn("Active", note["text"])
+
+
+class TestSingleScreenLayout(unittest.TestCase):
+    def setUp(self):
+        self.client = create_app().test_client()
+        self.valid = {"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
+                      "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+
+    def test_get_renders_three_panels_and_svg(self):
+        body = self.client.get("/").get_data(as_text=True)
+        for cls in ("panel-input", "panel-circuit", "panel-results"):
+            self.assertIn(cls, body)
+        self.assertIn("<svg", body)
+        self.assertIn("schematic", body)
+
+    def test_get_shows_default_labels_in_circuit(self):
+        body = self.client.get("/").get_data(as_text=True)
+        for text in ("12 V", "100 kΩ", "22 kΩ", "2.2 kΩ", "1 kΩ", "β = 100"):
+            self.assertIn(text, body)
+
+    def test_post_updates_circuit_labels(self):
+        body = self.client.post("/calculate", data=dict(self.valid, r1="47")).get_data(as_text=True)
+        self.assertIn("47 kΩ", body)
+        self.assertNotIn("100 kΩ", body)
+
+    def test_ohm_mode_updates_circuit_labels(self):
+        body = self.client.post("/calculate", data=dict(self.valid, unit="ohm")).get_data(as_text=True)
+        self.assertIn("100 Ω", body)
+        self.assertNotIn("100 kΩ", body)
+
+    def test_blank_field_renders_dash_not_none(self):
+        body = self.client.post("/calculate", data=dict(self.valid, r2="")).get_data(as_text=True)
+        self.assertIn("—", body)
+        self.assertNotIn(">None<", body)
+
+    def test_get_has_no_answer_numbers(self):
+        body = self.client.get("/").get_data(as_text=True)
+        for leak in ("1.942", "8.052", "9.294"):
+            self.assertNotIn(leak, body)
+
+    def test_get_shows_idle_status_and_dashes(self):
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn("status-idle", body)
+        self.assertIn("—", body)
+
+    def test_post_shows_active_status(self):
+        body = self.client.post("/calculate", data=self.valid).get_data(as_text=True)
+        self.assertIn("status-ok", body)
+        self.assertIn("Active", body)
+
+    def test_cutoff_shows_danger_status(self):
+        body = self.client.post("/calculate", data=dict(self.valid, r2="1")).get_data(as_text=True)
+        self.assertIn("status-danger", body)

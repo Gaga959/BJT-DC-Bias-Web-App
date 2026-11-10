@@ -122,7 +122,15 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index():
-        return render_template("index.html", form=DEFAULT_FORM, error=None)
+        return render_template(
+            "index.html",
+            form=DEFAULT_FORM,
+            error=None,
+            result=None,
+            values=None,
+            diagram=_diagram_labels(DEFAULT_FORM),
+            status=None,
+        )
 
     @app.post("/calculate")
     def calculate():
@@ -140,7 +148,15 @@ def create_app() -> Flask:
             )
             result = calculate_dc_bias(inp)
         except (ValidationError, ValueError) as exc:
-            return render_template("index.html", form=form, error=str(exc))
+            return render_template(
+                "index.html",
+                form=form,
+                error=str(exc),
+                result=None,
+                values=None,
+                diagram=_diagram_labels(form),
+                status=None,
+            )
 
         return render_template(
             "index.html",
@@ -148,6 +164,8 @@ def create_app() -> Flask:
             error=None,
             result=result,
             values=_format_result(result),
+            diagram=_diagram_labels(form),
+            status=_status_note(result),
         )
 
     return app

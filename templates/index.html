@@ -9,8 +9,10 @@
 <body>
   <main class="page">
     <header class="page-header">
-      <p class="eyebrow">ENG29 2121 · Lab 02</p>
-      <h1>BJT DC Bias Calculator</h1>
+      <div>
+        <p class="eyebrow">ENG29 2121 · Lab 02</p>
+        <h1>BJT DC Bias Calculator</h1>
+      </div>
       <p class="subtitle">วงจรขยาย Common-Emitter แบบ Voltage-Divider Bias</p>
     </header>
 
@@ -18,84 +20,188 @@
     <p class="error" role="alert">{{ error }}</p>
     {% endif %}
 
-    <form class="bias-form" method="post" action="/calculate">
-      <div class="field">
-        <label for="vcc">VCC (V)</label>
-        <input id="vcc" name="vcc" type="text" inputmode="decimal" value="{{ form.vcc }}">
-      </div>
+    <div class="workspace">
+      <section class="panel panel-input">
+        <header class="panel-head">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3.5"/>
+            <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>
+          </svg>
+          <h2>Input Parameters</h2>
+        </header>
 
-      <fieldset class="resistors">
-        <legend>ตัวต้านทาน</legend>
-        <div class="field">
-          <label for="r1">R1</label>
-          <input id="r1" name="r1" type="text" inputmode="decimal" value="{{ form.r1 }}">
-        </div>
-        <div class="field">
-          <label for="r2">R2</label>
-          <input id="r2" name="r2" type="text" inputmode="decimal" value="{{ form.r2 }}">
-        </div>
-        <div class="field">
-          <label for="rc">RC</label>
-          <input id="rc" name="rc" type="text" inputmode="decimal" value="{{ form.rc }}">
-        </div>
-        <div class="field">
-          <label for="re">RE</label>
-          <input id="re" name="re" type="text" inputmode="decimal" value="{{ form.re }}">
-        </div>
-        <div class="field">
-          <label for="unit">หน่วยตัวต้านทาน</label>
-          <select id="unit" name="unit">
-            <option value="kohm" {% if form.unit == 'kohm' %}selected{% endif %}>kΩ</option>
-            <option value="ohm" {% if form.unit == 'ohm' %}selected{% endif %}>Ω</option>
-          </select>
-        </div>
-      </fieldset>
+        <form class="bias-form" method="post" action="/calculate">
+          <div class="field">
+            <label for="vcc">VCC</label>
+            <span class="field-input">
+              <input id="vcc" name="vcc" type="text" inputmode="decimal" value="{{ form.vcc }}">
+              <span class="unit">V</span>
+            </span>
+          </div>
 
-      <div class="field">
-        <label for="beta">β</label>
-        <input id="beta" name="beta" type="text" inputmode="decimal" value="{{ form.beta }}">
-      </div>
-      <div class="field">
-        <label for="vbe">VBE (V)</label>
-        <input id="vbe" name="vbe" type="text" inputmode="decimal" value="{{ form.vbe }}">
-      </div>
+          <div class="field">
+            <label for="r1">R1 — ตัวต้านทานบน</label>
+            <span class="field-input">
+              <input id="r1" name="r1" type="text" inputmode="decimal" value="{{ form.r1 }}">
+            </span>
+          </div>
 
-      <button type="submit">Calculate DC Bias</button>
-    </form>
+          <div class="field">
+            <label for="r2">R2 — ตัวต้านทานล่าง</label>
+            <span class="field-input">
+              <input id="r2" name="r2" type="text" inputmode="decimal" value="{{ form.r2 }}">
+            </span>
+          </div>
 
-    {% if result %}
-    <section class="results">
-      <div class="results-head">
-        <h2>DC Bias Results</h2>
-        <span class="badge badge-{{ result.region }}">{{ values.region }}</span>
-      </div>
+          <div class="field">
+            <label for="rc">RC — Collector</label>
+            <span class="field-input">
+              <input id="rc" name="rc" type="text" inputmode="decimal" value="{{ form.rc }}">
+            </span>
+          </div>
 
-      {% for warning in result.warnings %}
-      <p class="warning">{{ warning }}</p>
-      {% endfor %}
+          <div class="field">
+            <label for="re">RE — Emitter</label>
+            <span class="field-input">
+              <input id="re" name="re" type="text" inputmode="decimal" value="{{ form.re }}">
+            </span>
+          </div>
 
-      <dl class="values">
-        <div><dt>VB</dt><dd>{{ values.vb }} V</dd></div>
-        <div><dt>VE</dt><dd>{{ values.ve }} V</dd></div>
-        <div><dt>VC</dt><dd>{{ values.vc }} V</dd></div>
-        <div><dt>VCE</dt><dd>{{ values.vce }} V</dd></div>
-        <div><dt>IC</dt><dd>{{ values.ic }} mA</dd></div>
-        <div><dt>IE</dt><dd>{{ values.ie }} mA</dd></div>
-        <div><dt>IB</dt><dd>{{ values.ib }} µA</dd></div>
-      </dl>
+          <div class="field">
+            <label for="unit">หน่วยตัวต้านทาน</label>
+            <span class="field-input">
+              <select id="unit" name="unit">
+                <option value="kohm" {% if form.unit == 'kohm' %}selected{% endif %}>kΩ</option>
+                <option value="ohm" {% if form.unit == 'ohm' %}selected{% endif %}>Ω</option>
+              </select>
+            </span>
+          </div>
 
-      <details class="working">
-        <summary>วิธีคำนวณ</summary>
-        <dl class="values">
-          <div><dt>VTH</dt><dd>{{ values.vth }} V</dd></div>
-          <div><dt>RTH</dt><dd>{{ values.rth }} kΩ</dd></div>
-          <div><dt>IB</dt><dd>{{ values.ib }} µA</dd></div>
-          <div><dt>IE</dt><dd>{{ values.ie }} mA</dd></div>
-        </dl>
-        <p class="note">ค่าทั้งหมดคำนวณจาก Python Backend (dc_bias.py) ไม่ใช่ค่าที่ฝังใน HTML</p>
-      </details>
-    </section>
-    {% endif %}
+          <div class="field">
+            <label for="beta">β — Current Gain</label>
+            <span class="field-input">
+              <input id="beta" name="beta" type="text" inputmode="decimal" value="{{ form.beta }}">
+            </span>
+          </div>
+
+          <div class="field">
+            <label for="vbe">VBE</label>
+            <span class="field-input">
+              <input id="vbe" name="vbe" type="text" inputmode="decimal" value="{{ form.vbe }}">
+              <span class="unit">V</span>
+            </span>
+          </div>
+
+          <button type="submit">Calculate DC Bias</button>
+        </form>
+      </section>
+
+      <section class="panel panel-circuit">
+        <header class="panel-head">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M3 12h5M16 12h5M12 3v5M12 16v5"/>
+            <circle cx="12" cy="12" r="3.2"/>
+          </svg>
+          <h2>Circuit: Common-Emitter Amplifier</h2>
+        </header>
+
+        <svg class="schematic" viewBox="0 0 360 350" role="img"
+             aria-label="วงจรขยาย BJT แบบ voltage-divider bias พร้อมค่าที่กรอก">
+          <g class="wire" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M70 44H290"/>
+            <path d="M100 44V70M100 124V150"/>
+            <path d="M100 150H150"/>
+            <path d="M100 150V176M100 230V266"/>
+            <path d="M100 266V276"/>
+            <path d="M186 118V96H250"/>
+            <path d="M250 44V52M250 90V96"/>
+            <path d="M186 182V250M186 300V320"/>
+          </g>
+
+          <g class="res" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="92" y="70" width="16" height="54" rx="2"/>
+            <rect x="92" y="176" width="16" height="54" rx="2"/>
+            <rect x="242" y="52" width="16" height="38" rx="2"/>
+            <rect x="178" y="250" width="16" height="50" rx="2"/>
+          </g>
+
+          <g class="q1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M150 132V168"/>
+            <path d="M150 140L186 118"/>
+            <path d="M150 160L186 182"/>
+            <path d="M186 182L170 178L176 168" fill="currentColor" stroke="none"/>
+          </g>
+
+          <g class="ground" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M88 276H112M92 282H108M96 288H104"/>
+            <path d="M174 320H198M178 326H194M182 332H190"/>
+          </g>
+
+          <circle class="dot" cx="100" cy="150" r="3" fill="currentColor"/>
+          <circle class="dot" cx="186" cy="96" r="3" fill="currentColor"/>
+
+          <g class="lbl" text-anchor="middle">
+            <text class="lbl-major" x="180" y="26">VCC = {{ diagram.vcc }}</text>
+          </g>
+
+          <g class="lbl" text-anchor="end">
+            <text x="84" y="86">R1</text>
+            <text class="lbl-value" x="84" y="102">{{ diagram.r1 }}</text>
+            <text x="84" y="192">R2</text>
+            <text class="lbl-value" x="84" y="208">{{ diagram.r2 }}</text>
+          </g>
+
+          <g class="lbl">
+            <text x="266" y="60">RC</text>
+            <text class="lbl-value" x="266" y="76">{{ diagram.rc }}</text>
+            <text x="202" y="264">RE</text>
+            <text class="lbl-value" x="202" y="280">{{ diagram.re }}</text>
+            <text x="202" y="120">Q1 · NPN</text>
+            <text class="lbl-value" x="202" y="136">{{ diagram.beta }}</text>
+          </g>
+        </svg>
+      </section>
+
+      <section class="panel panel-results">
+        <header class="panel-head">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/>
+          </svg>
+          <h2>DC Bias Results</h2>
+        </header>
+
+        <table class="results-table">
+          <tbody>
+            <tr><th scope="row">V<sub>B</sub></th><td>{% if values %}{{ values.vb }} V{% else %}—{% endif %}</td></tr>
+            <tr><th scope="row">V<sub>E</sub></th><td>{% if values %}{{ values.ve }} V{% else %}—{% endif %}</td></tr>
+            <tr><th scope="row">V<sub>C</sub></th><td>{% if values %}{{ values.vc }} V{% else %}—{% endif %}</td></tr>
+            <tr><th scope="row">V<sub>CE</sub></th><td>{% if values %}{{ values.vce }} V{% else %}—{% endif %}</td></tr>
+            <tr><th scope="row">I<sub>B</sub></th><td>{% if values %}{{ values.ib }} µA{% else %}—{% endif %}</td></tr>
+            <tr><th scope="row">I<sub>C</sub></th><td>{% if values %}{{ values.ic }} mA{% else %}—{% endif %}</td></tr>
+            <tr><th scope="row">I<sub>E</sub></th><td>{% if values %}{{ values.ie }} mA{% else %}—{% endif %}</td></tr>
+          </tbody>
+        </table>
+
+        {% if status %}
+        <div class="status status-{{ status.tone }}">{{ status.text }}</div>
+        {% else %}
+        <div class="status status-idle">กด Calculate DC Bias เพื่อคำนวณ</div>
+        {% endif %}
+
+        {% if result %}
+        <details class="working">
+          <summary>วิธีคำนวณ</summary>
+          <dl class="values">
+            <div><dt>VTH</dt><dd>{{ values.vth }} V</dd></div>
+            <div><dt>RTH</dt><dd>{{ values.rth }} kΩ</dd></div>
+            <div><dt>IB</dt><dd>{{ values.ib }} µA</dd></div>
+            <div><dt>IE</dt><dd>{{ values.ie }} mA</dd></div>
+          </dl>
+          <p class="note">ค่าทั้งหมดคำนวณจาก Python Backend (dc_bias.py) ไม่ใช่ค่าที่ฝังใน HTML</p>
+        </details>
+        {% endif %}
+      </section>
+    </div>
   </main>
 </body>
 </html>
