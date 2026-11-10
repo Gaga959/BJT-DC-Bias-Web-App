@@ -1,6 +1,7 @@
 import unittest
 
-from app import _to_ohms, create_app
+from app import _diagram_labels, _status_note, _to_ohms, create_app
+from dc_bias import DcBiasInput, calculate_dc_bias
 
 
 class TestHomePage(unittest.TestCase):
@@ -94,3 +95,35 @@ class TestResultsPresentation(unittest.TestCase):
     def test_stylesheet_linked(self):
         body = self.client.get("/").get_data(as_text=True)
         self.assertIn("static/style.css", body)
+
+
+class TestDiagramLabels(unittest.TestCase):
+    def test_defaults_use_kohm_unit(self):
+        labels = _diagram_labels({"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
+                                  "re": "1", "beta": "100", "unit": "kohm"})
+        self.assertEqual(labels["vcc"], "12 V")
+        self.assertEqual(labels["r1"], "100 kΩ")
+        self.assertEqual(labels["beta"], "β = 100")
+
+    def test_ohm_unit_changes_suffix(self):
+        labels = _diagram_labels({"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
+                                  "re": "1", "beta": "100", "unit": "ohm"})
+        self.assertEqual(labels["r1"], "100 Ω")
+
+    def test_blank_field_becomes_dash(self):
+        labels = _diagram_labels({"vcc": "12", "r1": "", "r2": "22", "rc": "2.2",
+                                  "re": "1", "beta": "100", "unit": "kohm"})
+        self.assertEqual(labels["r1"], "—")
+
+
+class TestStatusNote(unittest.TestCase):
+    def test_active_is_ok(self):
+        note = _status_note(calculate_dc_bias(DcBiasInput(12.0, 100e3, 22e3, 2.2e3, 1e3, 100.0, 0.70)))
+        self.assertEqual(note["tone"], "ok")
+        self.assertIn("Active", note["text"])
+
+    def test_cutoff_is_danger_not_ok(self):
+        note = _status_note(calculate_dc_bias(DcBiasInput(12.0, 100e3, 1e3, 2.2e3, 1e3, 100.0, 0.70)))
+        self.assertEqual(note["tone"], "danger")
+        self.assertIn("Cutoff", note["text"])
+        self.assertNotIn("Active", note["text"])

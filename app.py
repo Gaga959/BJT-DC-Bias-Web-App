@@ -6,7 +6,16 @@ import math
 
 from flask import Flask, render_template, request
 
-from dc_bias import DcBiasInput, ValidationError, calculate_dc_bias
+from dc_bias import (
+    VCE_NEAR_SAT,
+    VCE_SAT,
+    DcBiasInput,
+    DcBiasResult,
+    ValidationError,
+    calculate_dc_bias,
+)
+
+DASH = "—"
 
 DEFAULT_FORM = {
     "vcc": "12",
@@ -61,6 +70,50 @@ def _format_result(result) -> dict[str, str]:
         "vth": f"{result.vth:.3f}",
         "rth": f"{result.rth / 1e3:.2f}",
         "region": REGION_LABELS[result.region],
+    }
+
+
+def _diagram_labels(form) -> dict[str, str]:
+    """Labels for the schematic: raw input text with its unit, never parsed."""
+    symbol = "Ω" if (form.get("unit") or "").strip() == "ohm" else "kΩ"
+
+    def label(key: str, suffix: str) -> str:
+        text = (form.get(key) or "").strip()
+        if not text:
+            return DASH
+        return f"{text} {suffix}".strip()
+
+    beta = (form.get("beta") or "").strip()
+    return {
+        "vcc": label("vcc", "V"),
+        "r1": label("r1", symbol),
+        "r2": label("r2", symbol),
+        "rc": label("rc", symbol),
+        "re": label("re", symbol),
+        "beta": f"β = {beta}" if beta else DASH,
+    }
+
+
+def _status_note(result: DcBiasResult) -> dict[str, str]:
+    """Short status sentence for the results panel, derived from the region."""
+    if result.region == "active":
+        return {
+            "tone": "ok",
+            "text": f"Active region — VCE = {result.vce:.2f} V > {VCE_SAT:g} V ทำงานในช่วงขยาย",
+        }
+    if result.region == "near-saturation":
+        return {
+            "tone": "warn",
+            "text": f"Near Saturation — VCE = {result.vce:.2f} V ต่ำกว่า {VCE_NEAR_SAT:g} V ผลอาจคลาดเคลื่อน",
+        }
+    if result.region == "saturation":
+        return {
+            "tone": "danger",
+            "text": f"Saturation — VCE = {result.vce:.2f} V ต่ำกว่า {VCE_SAT:g} V ค่าที่ได้ไม่น่าเชื่อถือ",
+        }
+    return {
+        "tone": "danger",
+        "text": "Cutoff — VTH ≤ VBE กระแสเป็นศูนย์ ทรานซิสเตอร์ยังไม่นำกระแส",
     }
 
 
