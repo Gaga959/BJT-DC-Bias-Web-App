@@ -180,3 +180,11 @@ class TestSingleScreenLayout(unittest.TestCase):
     def test_cutoff_shows_danger_status(self):
         body = self.client.post("/calculate", data=dict(self.valid, r2="1")).get_data(as_text=True)
         self.assertIn("status-danger", body)
+
+    def test_schematic_uses_zigzag_resistors(self):
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertGreaterEqual(body.count("res-zigzag"), 4)
+
+    def test_schematic_wraps_transistor_in_circle(self):
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn("q1-circle", body)
