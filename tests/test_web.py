@@ -17,6 +17,12 @@ class TestHomePage(unittest.TestCase):
         self.assertIn('name="unit"', body)
         self.assertIn("Calculate DC Bias", body)
 
+    def test_unit_select_offers_kohm_ohm_and_mohm(self):
+        body = self.client.get("/").get_data(as_text=True)
+        for unit in ('value="kohm"', 'value="ohm"', 'value="mohm"'):
+            self.assertIn(unit, body)
+        self.assertIn("MΩ", body)
+
 
 class TestCalculateRoute(unittest.TestCase):
     def setUp(self):
@@ -65,6 +71,20 @@ class TestCalculateRoute(unittest.TestCase):
     def test_to_ohms_converts_kohm(self):
         self.assertEqual(_to_ohms("100", "kohm", "R1"), 100_000.0)
 
+    def test_to_ohms_converts_mohm(self):
+        self.assertEqual(_to_ohms("1", "mohm", "RB"), 1_000_000.0)
+
+    def test_mohm_matches_kohm_for_same_physical_value(self):
+        base = {"mode": "fixed", "vcc": "12", "rb": "1000", "rc": "2.2",
+                "beta": "100", "vbe": "0.70", "unit": "kohm"}
+        kohm = self.client.post("/calculate", data=base).get_data(as_text=True)
+        mohm = self.client.post(
+            "/calculate", data=dict(base, rb="1", rc="0.0022", unit="mohm")
+        ).get_data(as_text=True)
+        for expected in ("1.130", "9.514"):
+            self.assertIn(expected, kohm)
+            self.assertIn(expected, mohm)
+
     def test_to_ohms_passes_ohm(self):
         self.assertEqual(_to_ohms("100", "ohm", "R1"), 100.0)
 
@@ -109,6 +129,11 @@ class TestDiagramLabels(unittest.TestCase):
         labels = _diagram_labels({"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
                                   "re": "1", "beta": "100", "unit": "ohm"})
         self.assertEqual(labels["r1"], "100 Ω")
+
+    def test_mohm_unit_changes_suffix(self):
+        labels = _diagram_labels({"vcc": "12", "r1": "1", "r2": "22", "rc": "2.2",
+                                  "re": "1", "beta": "100", "unit": "mohm"})
+        self.assertEqual(labels["r1"], "1 MΩ")
 
     def test_blank_field_becomes_dash(self):
         labels = _diagram_labels({"vcc": "12", "r1": "", "r2": "22", "rc": "2.2",
@@ -255,6 +280,13 @@ class TestModeSelection(unittest.TestCase):
         body = self.client.post("/calculate", data=self.divider).get_data(as_text=True)
         self.assertIn("1.230", body)
         self.assertIn("8.052", body)
+
+    def test_mohm_selection_survives_post(self):
+        body = self.client.post(
+            "/calculate", data=dict(self.fixed, rb="1", unit="mohm")
+        ).get_data(as_text=True)
+        self.assertIn('value="mohm" selected', body)
+        self.assertIn("1 MΩ", body)
 
 
 class TestModeSchematics(unittest.TestCase):

@@ -20,6 +20,10 @@ Commit ที่ใช้ตรวจ: `75bf98d` (`feat: draw per-mode schematic
 
 `VCC = 12 V`, `RC = 2.2 kΩ`, `β = 100`, `VBE = 0.70 V`, หน่วยตัวต้านทาน `kΩ`
 
+> แอปรองรับหน่วย `kΩ`, `Ω` และ `MΩ` (ใช้กับตัวต้านทานทุกตัวพร้อมกัน)
+> ตารางนี้ใช้ `kΩ` ตามใบงาน; เทสต์ `test_mohm_matches_kohm_for_same_physical_value`
+> ยืนยันว่า `RB = 1 MΩ` ให้ผลเท่ากับ `RB = 1000 kΩ`
+
 ## Prediction ของ A4 (บันทึกก่อนรัน)
 
 A4 คือ Emitter Bias ที่เพิ่ม `RE` จาก 1 kΩ เป็น 2 kΩ

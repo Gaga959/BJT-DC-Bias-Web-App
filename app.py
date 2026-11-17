@@ -93,6 +93,8 @@ def _to_ohms(raw: str | None, unit: str, label: str) -> float:
         return value * 1000.0
     if unit == "ohm":
         return value
+    if unit == "mohm":
+        return value * 1_000_000.0
     raise ValueError("หน่วยตัวต้านทานไม่ถูกต้อง")
 
 
@@ -126,7 +128,7 @@ def _workings(mode: str, result) -> list[dict[str, str]]:
 
 def _diagram_labels(form, mode: str = "divider") -> dict[str, str]:
     """Labels for the schematic: raw input text with its unit, never parsed."""
-    symbol = "Ω" if (form.get("unit") or "").strip() == "ohm" else "kΩ"
+    symbol = {"ohm": "Ω", "mohm": "MΩ"}.get((form.get("unit") or "").strip(), "kΩ")
 
     def label(key: str, suffix: str) -> str:
         text = (form.get(key) or "").strip()
