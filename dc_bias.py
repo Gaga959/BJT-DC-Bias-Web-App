@@ -43,12 +43,57 @@ class DcBiasResult:
     warnings: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class FixedBiasInput:
+    vcc: float
+    rb: float
+    rc: float
+    beta: float
+    vbe: float
+
+
+@dataclass(frozen=True)
+class BiasResult:
+    ib: float
+    ic: float
+    ie: float
+    vb: float
+    ve: float
+    vc: float
+    vce: float
+    region: str
+    warnings: tuple[str, ...]
+
+
 def classify_region(vth: float, vbe: float, vce: float) -> tuple[str, tuple[str, ...]]:
     """Return the operating region and any warnings for the computed point."""
     if vth <= vbe:
         return (
             "cutoff",
             ("Cutoff: VTH ≤ VBE ทำให้ IB ≤ 0 — แบบจำลอง Forward-Active ใช้ไม่ได้",),
+        )
+    if vce < VCE_SAT:
+        return (
+            "saturation",
+            (
+                "Saturation: VCE < 0.2 V — ค่าที่ได้ไม่น่าเชื่อถือ "
+                "เพราะ VCE ควรใกล้ VCE(sat) ประมาณ 0.2 V",
+            ),
+        )
+    if vce < VCE_NEAR_SAT:
+        return (
+            "near-saturation",
+            ("Near Saturation: VCE < 0.5 V — ผลอาจคลาดเคลื่อนจากแบบจำลอง",),
+        )
+    return ("active", ())
+
+
+def classify_operating_point(ib: float, vce: float) -> tuple[str, tuple[str, ...]]:
+    """Return the operating region for bias modes without a VTH term."""
+    if ib <= 0:
+        return (
+            "cutoff",
+            ("Cutoff: IB ≤ 0 — แบบจำลอง Forward-Active ใช้ไม่ได้",),
         )
     if vce < VCE_SAT:
         return (
@@ -97,6 +142,40 @@ def calculate_dc_bias(inp: DcBiasInput) -> DcBiasResult:
     return DcBiasResult(
         vth=vth,
         rth=rth,
+        ib=ib,
+        ic=ic,
+        ie=ie,
+        vb=vb,
+        ve=ve,
+        vc=vc,
+        vce=vce,
+        region=region,
+        warnings=warnings,
+    )
+
+
+def calculate_fixed_bias(inp: FixedBiasInput) -> BiasResult:
+    if inp.vcc <= 0:
+        raise ValidationError("VCC ต้องมากกว่า 0")
+    if inp.rb <= 0:
+        raise ValidationError("RB ต้องมากกว่า 0")
+    if inp.rc <= 0:
+        raise ValidationError("RC ต้องมากกว่า 0")
+    if inp.beta <= 0:
+        raise ValidationError("β ต้องมากกว่า 0")
+    if not 0 < inp.vbe < inp.vcc:
+        raise ValidationError("VBE ต้องมากกว่า 0 และน้อยกว่า VCC")
+
+    ib = (inp.vcc - inp.vbe) / inp.rb
+    ic = inp.beta * ib
+    ie = (inp.beta + 1.0) * ib
+    ve = 0.0
+    vb = inp.vbe
+    vc = inp.vcc - ic * inp.rc
+    vce = vc
+
+    region, warnings = classify_operating_point(ib, vce)
+    return BiasResult(
         ib=ib,
         ic=ic,
         ie=ie,

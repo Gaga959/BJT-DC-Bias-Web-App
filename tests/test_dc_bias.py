@@ -1,7 +1,15 @@
 import unittest
 from dataclasses import replace
 
-from dc_bias import DcBiasInput, ValidationError, calculate_dc_bias, classify_region
+from dc_bias import (
+    DcBiasInput,
+    FixedBiasInput,
+    ValidationError,
+    calculate_dc_bias,
+    calculate_fixed_bias,
+    classify_operating_point,
+    classify_region,
+)
 
 
 class TestReferenceCase(unittest.TestCase):
@@ -73,3 +81,37 @@ class TestRegion(unittest.TestCase):
 
     def test_cutoff_checked_before_saturation(self):
         self.assertEqual(classify_region(0.5, 0.7, 0.1)[0], "cutoff")
+
+
+class TestFixedBias(unittest.TestCase):
+    def test_reference_case(self):
+        res = calculate_fixed_bias(FixedBiasInput(12.0, 1e6, 2.2e3, 100.0, 0.70))
+        self.assertAlmostEqual(res.ib, 11.3e-6, places=12)
+        self.assertAlmostEqual(res.ic, 1.13e-3, places=12)
+        self.assertAlmostEqual(res.ie, 1.1413e-3, places=12)
+        self.assertAlmostEqual(res.vb, 0.70, places=9)
+        self.assertEqual(res.ve, 0.0)
+        self.assertAlmostEqual(res.vc, 9.514, places=9)
+        self.assertAlmostEqual(res.vce, 9.514, places=9)
+        self.assertEqual(res.region, "active")
+        self.assertEqual(res.warnings, ())
+
+    def test_zero_rb_is_rejected(self):
+        with self.assertRaises(ValidationError) as ctx:
+            calculate_fixed_bias(FixedBiasInput(12.0, 0.0, 2.2e3, 100.0, 0.70))
+        self.assertIn("RB ต้องมากกว่า 0", str(ctx.exception))
+
+    def test_zero_rc_is_rejected(self):
+        with self.assertRaises(ValidationError) as ctx:
+            calculate_fixed_bias(FixedBiasInput(12.0, 1e6, 0.0, 100.0, 0.70))
+        self.assertIn("RC ต้องมากกว่า 0", str(ctx.exception))
+
+
+class TestClassifyOperatingPoint(unittest.TestCase):
+    def test_cutoff_when_ib_not_positive(self):
+        self.assertEqual(classify_operating_point(0.0, 9.0)[0], "cutoff")
+
+    def test_saturation_boundaries(self):
+        self.assertEqual(classify_operating_point(1e-5, 0.199)[0], "saturation")
+        self.assertEqual(classify_operating_point(1e-5, 0.2)[0], "near-saturation")
+        self.assertEqual(classify_operating_point(1e-5, 0.5)[0], "active")
