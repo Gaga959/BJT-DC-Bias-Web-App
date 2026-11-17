@@ -126,6 +126,7 @@
           <h2>Circuit: Common-Emitter Amplifier</h2>
         </header>
 
+        {% if mode == 'divider' %}
         <svg class="schematic" viewBox="0 0 360 350" role="img"
              aria-label="วงจรขยาย BJT แบบ {{ mode_label }} พร้อมค่าที่กรอก">
           <g class="wire" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -183,6 +184,108 @@
             <text class="lbl-value" x="202" y="136">{{ diagram.beta }}</text>
           </g>
         </svg>
+        {% elif mode == 'fixed' %}
+        <svg class="schematic" viewBox="0 0 360 350" role="img"
+             aria-label="วงจรขยาย BJT แบบ {{ mode_label }} พร้อมค่าที่กรอก">
+          <g class="wire" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M70 44H290"/>
+            <path d="M100 44V60M100 140V150"/>
+            <path d="M100 150H152"/>
+            <path d="M187 129V96H250"/>
+            <path d="M250 44V52"/>
+            <path d="M187 171V300"/>
+          </g>
+
+          <g class="res" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+            <polyline class="res-zigzag" points="100,60 107,70 93,80 107,90 93,100 107,110 93,120 107,130 100,140"/>
+            <polyline class="res-zigzag" points="250,52 257,58.3 243,64.6 257,70.9 243,77.1 257,83.4 243,89.7 250,96"/>
+          </g>
+
+          <circle class="q1-circle" cx="166" cy="150" r="30"/>
+
+          <g class="q1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M152 134V166"/>
+            <path d="M152 143L187 129"/>
+            <path d="M152 157L187 171"/>
+            <path d="M187 171L177 170L180 162" fill="currentColor" stroke="none"/>
+          </g>
+
+          <g class="ground" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M175 300H199M179 306H195M183 312H187"/>
+          </g>
+
+          <circle class="dot" cx="100" cy="150" r="3" fill="currentColor"/>
+          <circle class="dot" cx="187" cy="96" r="3" fill="currentColor"/>
+
+          <g class="lbl" text-anchor="middle">
+            <text class="lbl-major" x="180" y="26">VCC = {{ diagram.vcc }}</text>
+          </g>
+
+          <g class="lbl" text-anchor="end">
+            <text x="84" y="90">RB</text>
+            <text class="lbl-value" x="84" y="106">{{ diagram.rb }}</text>
+          </g>
+
+          <g class="lbl">
+            <text x="266" y="60">RC</text>
+            <text class="lbl-value" x="266" y="76">{{ diagram.rc }}</text>
+            <text x="202" y="120">Q1 · NPN</text>
+            <text class="lbl-value" x="202" y="136">{{ diagram.beta }}</text>
+          </g>
+        </svg>
+        {% else %}
+        <svg class="schematic" viewBox="0 0 360 350" role="img"
+             aria-label="วงจรขยาย BJT แบบ {{ mode_label }} พร้อมค่าที่กรอก">
+          <g class="wire" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M70 44H290"/>
+            <path d="M100 44V60M100 140V150"/>
+            <path d="M100 150H152"/>
+            <path d="M187 129V96H250"/>
+            <path d="M250 44V52"/>
+            <path d="M187 171V250M186 300V320"/>
+          </g>
+
+          <g class="res" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+            <polyline class="res-zigzag" points="100,60 107,70 93,80 107,90 93,100 107,110 93,120 107,130 100,140"/>
+            <polyline class="res-zigzag" points="250,52 257,58.3 243,64.6 257,70.9 243,77.1 257,83.4 243,89.7 250,96"/>
+            <polyline class="res-zigzag" points="186,250 193,257.1 179,264.3 193,271.4 179,278.6 193,285.7 179,292.9 186,300"/>
+          </g>
+
+          <circle class="q1-circle" cx="166" cy="150" r="30"/>
+
+          <g class="q1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M152 134V166"/>
+            <path d="M152 143L187 129"/>
+            <path d="M152 157L187 171"/>
+            <path d="M187 171L177 170L180 162" fill="currentColor" stroke="none"/>
+          </g>
+
+          <g class="ground" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M174 320H198M178 326H194M182 332H190"/>
+          </g>
+
+          <circle class="dot" cx="100" cy="150" r="3" fill="currentColor"/>
+          <circle class="dot" cx="187" cy="96" r="3" fill="currentColor"/>
+
+          <g class="lbl" text-anchor="middle">
+            <text class="lbl-major" x="180" y="26">VCC = {{ diagram.vcc }}</text>
+          </g>
+
+          <g class="lbl" text-anchor="end">
+            <text x="84" y="90">RB</text>
+            <text class="lbl-value" x="84" y="106">{{ diagram.rb }}</text>
+          </g>
+
+          <g class="lbl">
+            <text x="266" y="60">RC</text>
+            <text class="lbl-value" x="266" y="76">{{ diagram.rc }}</text>
+            <text x="202" y="264">RE</text>
+            <text class="lbl-value" x="202" y="280">{{ diagram.re }}</text>
+            <text x="202" y="120">Q1 · NPN</text>
+            <text class="lbl-value" x="202" y="136">{{ diagram.beta }}</text>
+          </g>
+        </svg>
+        {% endif %}
       </section>
 
       <section class="panel panel-results">

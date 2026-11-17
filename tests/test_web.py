@@ -255,3 +255,26 @@ class TestModeSelection(unittest.TestCase):
         body = self.client.post("/calculate", data=self.divider).get_data(as_text=True)
         self.assertIn("1.230", body)
         self.assertIn("8.052", body)
+
+
+class TestModeSchematics(unittest.TestCase):
+    def setUp(self):
+        self.client = create_app().test_client()
+
+    def test_fixed_schematic_has_rb_and_rc_only(self):
+        body = self.client.get("/?mode=fixed").get_data(as_text=True)
+        self.assertEqual(body.count("res-zigzag"), 2)
+        self.assertIn(">RB<", body)
+        self.assertNotIn(">R1<", body)
+        self.assertNotIn(">RE<", body)
+
+    def test_emitter_schematic_has_rb_rc_re(self):
+        body = self.client.get("/?mode=emitter").get_data(as_text=True)
+        self.assertEqual(body.count("res-zigzag"), 3)
+        self.assertIn(">RB<", body)
+        self.assertIn(">RE<", body)
+        self.assertNotIn(">R1<", body)
+
+    def test_fixed_shows_rb_value_in_schematic(self):
+        body = self.client.get("/?mode=fixed").get_data(as_text=True)
+        self.assertIn("1000 kΩ", body)
