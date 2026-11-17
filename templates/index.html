@@ -32,7 +32,7 @@
 
         <nav class="mode-tabs" aria-label="เลือกวงจรไบแอส">
           {% for key, label in tabs.items() %}
-          <a class="mode-tab{% if key == mode %} is-active{% endif %}" href="{{ url_for('index', mode=key) }}">{{ label }}</a>
+          <a class="mode-tab{% if key == mode %} is-active{% endif %}"{% if key == mode %} aria-current="page"{% endif %} href="{{ url_for('index', mode=key) }}">{{ label }}</a>
           {% endfor %}
         </nav>
 

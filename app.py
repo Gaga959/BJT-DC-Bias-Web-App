@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 
 from flask import Flask, render_template, request
 
@@ -103,7 +104,7 @@ def _mode_from(raw: str | None) -> str | None:
     return text if text in MODE_LABELS else None
 
 
-def _format_result(result) -> dict[str, str]:
+def _format_result(result: DcBiasResult | BiasResult) -> dict[str, str]:
     return {
         "vb": f"{result.vb:.3f}",
         "ve": f"{result.ve:.3f}",
@@ -116,7 +117,7 @@ def _format_result(result) -> dict[str, str]:
     }
 
 
-def _workings(mode: str, result) -> list[dict[str, str]]:
+def _workings(mode: str, result: DcBiasResult | BiasResult) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     if mode == "divider":
         rows.append({"label": "VTH", "value": f"{result.vth:.3f} V"})
@@ -126,7 +127,7 @@ def _workings(mode: str, result) -> list[dict[str, str]]:
     return rows
 
 
-def _diagram_labels(form, mode: str = "divider") -> dict[str, str]:
+def _diagram_labels(form: Mapping[str, str], mode: str = "divider") -> dict[str, str]:
     """Labels for the schematic: raw input text with its unit, never parsed."""
     symbol = {"ohm": "Ω", "mohm": "MΩ"}.get((form.get("unit") or "").strip(), "kΩ")
 
@@ -178,11 +179,20 @@ def _status_note(result: DcBiasResult | BiasResult) -> dict[str, str]:
         }
     return {
         "tone": "danger",
-        "text": "Cutoff — VTH ≤ VBE กระแสเป็นศูนย์ ทรานซิสเตอร์ยังไม่นำกระแส",
+        "text": "Cutoff — กระแสเป็นศูนย์ ทรานซิสเตอร์ยังไม่นำกระแส",
     }
 
 
-def _render(mode, form, *, error=None, result=None, values=None, status=None, workings=None):
+def _render(
+    mode: str,
+    form: Mapping[str, str],
+    *,
+    error: str | None = None,
+    result: DcBiasResult | BiasResult | None = None,
+    values: dict[str, str] | None = None,
+    status: dict[str, str] | None = None,
+    workings: list[dict[str, str]] | None = None,
+) -> str:
     return render_template(
         "index.html",
         form=form,

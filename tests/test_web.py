@@ -66,7 +66,8 @@ class TestCalculateRoute(unittest.TestCase):
     def test_nan_beta_is_rejected(self):
         body = self.client.post("/calculate", data=dict(self.valid, beta="nan")).get_data(as_text=True)
         self.assertIn("เป็นตัวเลข", body)
-        self.assertNotIn("badge-active", body)
+        self.assertIn("status-idle", body)
+        self.assertNotIn("status-ok", body)
 
     def test_to_ohms_converts_kohm(self):
         self.assertEqual(_to_ohms("100", "kohm", "R1"), 100_000.0)
@@ -229,6 +230,17 @@ class TestModeSelection(unittest.TestCase):
         for mode in ("divider", "fixed", "emitter"):
             self.assertIn(f'href="/?mode={mode}"', body)
 
+    def test_active_tab_has_aria_current(self):
+        body = self.client.get("/?mode=fixed").get_data(as_text=True)
+        self.assertIn('class="mode-tab is-active" aria-current="page"', body)
+        self.assertEqual(body.count('aria-current="page"'), 1)
+
+    def test_get_unknown_mode_is_rejected(self):
+        body = self.client.get("/?mode=inverter").get_data(as_text=True)
+        self.assertIn("โหมดวงจรไม่ถูกต้อง", body)
+        self.assertIn("status-idle", body)
+        self.assertNotIn("1.230", body)
+
     def test_fixed_form_hides_divider_fields(self):
         body = self.client.get("/?mode=fixed").get_data(as_text=True)
         self.assertIn('name="rb"', body)
@@ -287,6 +299,34 @@ class TestModeSelection(unittest.TestCase):
         ).get_data(as_text=True)
         self.assertIn('value="mohm" selected', body)
         self.assertIn("1 MΩ", body)
+
+    def test_emitter_error_names_emitter_and_clears_numbers(self):
+        ok = self.client.post("/calculate", data=self.emitter).get_data(as_text=True)
+        self.assertIn("status-ok", ok)
+        self.assertIn("1.026", ok)
+
+        body = self.client.post(
+            "/calculate", data=dict(self.emitter, re="0")
+        ).get_data(as_text=True)
+        self.assertIn("Emitter Bias — RE ต้องมากกว่า 0", body)
+        self.assertIn("status-idle", body)
+        self.assertNotIn("1.026", body)
+        self.assertNotIn("8.705", body)
+
+    def test_new_modes_validate_vbe_and_beta(self):
+        for payload in (self.fixed, self.emitter):
+            with self.subTest(mode=payload["mode"], field="vbe"):
+                body = self.client.post(
+                    "/calculate", data=dict(payload, vbe="12")
+                ).get_data(as_text=True)
+                self.assertIn("VBE ต้องมากกว่า 0 และน้อยกว่า VCC", body)
+                self.assertIn("status-idle", body)
+            with self.subTest(mode=payload["mode"], field="beta"):
+                body = self.client.post(
+                    "/calculate", data=dict(payload, beta="0")
+                ).get_data(as_text=True)
+                self.assertIn("β ต้องมากกว่า 0", body)
+                self.assertIn("status-idle", body)
 
 
 class TestModeSchematics(unittest.TestCase):
