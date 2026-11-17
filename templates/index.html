@@ -110,26 +110,28 @@
           <g class="wire" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <path d="M70 44H290"/>
             <path d="M100 44V70M100 124V150"/>
-            <path d="M100 150H150"/>
+            <path d="M100 150H152"/>
             <path d="M100 150V176M100 230V266"/>
             <path d="M100 266V276"/>
-            <path d="M186 118V96H250"/>
-            <path d="M250 44V52M250 90V96"/>
-            <path d="M186 182V250M186 300V320"/>
+            <path d="M187 129V96H250"/>
+            <path d="M250 44V52"/>
+            <path d="M187 171V250M186 300V320"/>
           </g>
 
-          <g class="res" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="92" y="70" width="16" height="54" rx="2"/>
-            <rect x="92" y="176" width="16" height="54" rx="2"/>
-            <rect x="242" y="52" width="16" height="38" rx="2"/>
-            <rect x="178" y="250" width="16" height="50" rx="2"/>
+          <g class="res" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+            <polyline class="res-zigzag" points="100,70 107,77.7 93,85.4 107,93.1 93,100.9 107,108.6 93,116.3 100,124"/>
+            <polyline class="res-zigzag" points="100,176 107,183.7 93,191.4 107,199.1 93,206.9 107,214.6 93,222.3 100,230"/>
+            <polyline class="res-zigzag" points="250,52 257,58.3 243,64.6 257,70.9 243,77.1 257,83.4 243,89.7 250,96"/>
+            <polyline class="res-zigzag" points="186,250 193,257.1 179,264.3 193,271.4 179,278.6 193,285.7 179,292.9 186,300"/>
           </g>
+
+          <circle class="q1-circle" cx="166" cy="150" r="30"/>
 
           <g class="q1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M150 132V168"/>
-            <path d="M150 140L186 118"/>
-            <path d="M150 160L186 182"/>
-            <path d="M186 182L170 178L176 168" fill="currentColor" stroke="none"/>
+            <path d="M152 134V166"/>
+            <path d="M152 143L187 129"/>
+            <path d="M152 157L187 171"/>
+            <path d="M187 171L177 170L180 162" fill="currentColor" stroke="none"/>
           </g>
 
           <g class="ground" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -138,7 +140,7 @@
           </g>
 
           <circle class="dot" cx="100" cy="150" r="3" fill="currentColor"/>
-          <circle class="dot" cx="186" cy="96" r="3" fill="currentColor"/>
+          <circle class="dot" cx="187" cy="96" r="3" fill="currentColor"/>
 
           <g class="lbl" text-anchor="middle">
             <text class="lbl-major" x="180" y="26">VCC = {{ diagram.vcc }}</text>
