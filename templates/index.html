@@ -10,9 +10,9 @@
   <main class="page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">ENG29 2121 · Lab 02</p>
+        <p class="eyebrow">ENG29 2121 · Lab 03</p>
         <h1>BJT DC Bias Calculator</h1>
-        <p class="subtitle">วงจรขยาย Common-Emitter แบบ Voltage-Divider Bias</p>
+        <p class="subtitle">วงจรขยาย Common-Emitter — {{ mode_label }}</p>
       </div>
     </header>
 
@@ -30,7 +30,15 @@
           <h2>Input Parameters</h2>
         </header>
 
+        <nav class="mode-tabs" aria-label="เลือกวงจรไบแอส">
+          {% for key, label in tabs.items() %}
+          <a class="mode-tab{% if key == mode %} is-active{% endif %}" href="{{ url_for('index', mode=key) }}">{{ label }}</a>
+          {% endfor %}
+        </nav>
+
         <form class="bias-form" method="post" action="/calculate">
+          <input type="hidden" name="mode" value="{{ mode }}">
+
           <div class="field">
             <label for="vcc">VCC</label>
             <span class="field-input">
@@ -39,6 +47,7 @@
             </span>
           </div>
 
+          {% if mode == 'divider' %}
           <div class="field">
             <label for="r1">R1 — ตัวต้านทานบน</label>
             <span class="field-input">
@@ -52,6 +61,16 @@
               <input id="r2" name="r2" type="text" inputmode="decimal" value="{{ form.r2 }}">
             </span>
           </div>
+          {% endif %}
+
+          {% if mode in ('fixed', 'emitter') %}
+          <div class="field">
+            <label for="rb">RB — Base</label>
+            <span class="field-input">
+              <input id="rb" name="rb" type="text" inputmode="decimal" value="{{ form.rb }}">
+            </span>
+          </div>
+          {% endif %}
 
           <div class="field">
             <label for="rc">RC — Collector</label>
@@ -60,12 +79,14 @@
             </span>
           </div>
 
+          {% if mode in ('divider', 'emitter') %}
           <div class="field">
             <label for="re">RE — Emitter</label>
             <span class="field-input">
               <input id="re" name="re" type="text" inputmode="decimal" value="{{ form.re }}">
             </span>
           </div>
+          {% endif %}
 
           <div class="field">
             <label for="unit">หน่วยตัวต้านทาน</label>
@@ -106,7 +127,7 @@
         </header>
 
         <svg class="schematic" viewBox="0 0 360 350" role="img"
-             aria-label="วงจรขยาย BJT แบบ voltage-divider bias พร้อมค่าที่กรอก">
+             aria-label="วงจรขยาย BJT แบบ {{ mode_label }} พร้อมค่าที่กรอก">
           <g class="wire" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <path d="M70 44H290"/>
             <path d="M100 44V70M100 124V150"/>
@@ -170,6 +191,7 @@
             <path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/>
           </svg>
           <h2>DC Bias Results</h2>
+          <p class="mode-badge">{{ mode_label }}</p>
         </header>
 
         <table class="results-table">
@@ -194,10 +216,9 @@
         <details class="working">
           <summary>วิธีคำนวณ</summary>
           <dl class="values">
-            <div><dt>VTH</dt><dd>{{ values.vth }} V</dd></div>
-            <div><dt>RTH</dt><dd>{{ values.rth }} kΩ</dd></div>
-            <div><dt>IB</dt><dd>{{ values.ib }} µA</dd></div>
-            <div><dt>IE</dt><dd>{{ values.ie }} mA</dd></div>
+            {% for row in workings %}
+            <div><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div>
+            {% endfor %}
           </dl>
           <p class="note">ค่าทั้งหมดคำนวณจาก Python Backend (dc_bias.py) ไม่ใช่ค่าที่ฝังใน HTML</p>
         </details>

@@ -21,7 +21,7 @@ class TestHomePage(unittest.TestCase):
 class TestCalculateRoute(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()
-        self.valid = {"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
+        self.valid = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
                       "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
 
     def test_valid_input_shows_computed_values(self):
@@ -72,7 +72,7 @@ class TestCalculateRoute(unittest.TestCase):
 class TestResultsPresentation(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()
-        self.valid = {"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
+        self.valid = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
                       "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
 
     def test_shows_intermediate_values_in_details(self):
@@ -132,7 +132,7 @@ class TestStatusNote(unittest.TestCase):
 class TestSingleScreenLayout(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()
-        self.valid = {"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
+        self.valid = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
                       "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
 
     def test_get_renders_three_panels_and_svg(self):
@@ -188,3 +188,70 @@ class TestSingleScreenLayout(unittest.TestCase):
     def test_schematic_wraps_transistor_in_circle(self):
         body = self.client.get("/").get_data(as_text=True)
         self.assertIn("q1-circle", body)
+
+
+class TestModeSelection(unittest.TestCase):
+    def setUp(self):
+        self.client = create_app().test_client()
+        self.divider = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22",
+                        "rc": "2.2", "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+        self.fixed = {"mode": "fixed", "vcc": "12", "rb": "1000",
+                      "rc": "2.2", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+        self.emitter = dict(self.fixed, mode="emitter", re="1")
+
+    def test_tabs_link_each_mode(self):
+        body = self.client.get("/").get_data(as_text=True)
+        for mode in ("divider", "fixed", "emitter"):
+            self.assertIn(f'href="/?mode={mode}"', body)
+
+    def test_fixed_form_hides_divider_fields(self):
+        body = self.client.get("/?mode=fixed").get_data(as_text=True)
+        self.assertIn('name="rb"', body)
+        for hidden in ('name="r1"', 'name="r2"', 'name="re"'):
+            self.assertNotIn(hidden, body)
+
+    def test_emitter_form_shows_rb_and_re(self):
+        body = self.client.get("/?mode=emitter").get_data(as_text=True)
+        for field in ('name="rb"', 'name="rc"', 'name="re"'):
+            self.assertIn(field, body)
+        self.assertNotIn('name="r1"', body)
+
+    def test_fixed_result_has_mode_badge(self):
+        body = self.client.post("/calculate", data=self.fixed).get_data(as_text=True)
+        self.assertIn('class="mode-badge"', body)
+        self.assertIn("Fixed Bias", body)
+        self.assertIn("1.130", body)
+        self.assertIn("9.514", body)
+
+    def test_emitter_result_values(self):
+        body = self.client.post("/calculate", data=self.emitter).get_data(as_text=True)
+        self.assertIn("1.026", body)
+        self.assertIn("8.705", body)
+
+    def test_unknown_mode_is_rejected(self):
+        body = self.client.post("/calculate", data=dict(self.divider, mode="inverter")).get_data(as_text=True)
+        self.assertIn("โหมดวงจรไม่ถูกต้อง", body)
+        self.assertIn("status-idle", body)
+
+    def test_missing_mode_is_rejected(self):
+        data = {k: v for k, v in self.divider.items() if k != "mode"}
+        body = self.client.post("/calculate", data=data).get_data(as_text=True)
+        self.assertIn("โหมดวงจรไม่ถูกต้อง", body)
+
+    def test_fixed_zero_rb_names_rb_and_shows_no_numbers(self):
+        body = self.client.post("/calculate", data=dict(self.fixed, rb="0")).get_data(as_text=True)
+        self.assertIn("RB ต้องมากกว่า 0", body)
+        self.assertIn("Fixed Bias", body)
+        self.assertNotIn("1.130", body)
+        self.assertNotIn("9.514", body)
+
+    def test_wrong_mode_payload_asks_for_rb(self):
+        data = {k: v for k, v in self.divider.items() if k != "r1"}
+        data["mode"] = "fixed"
+        body = self.client.post("/calculate", data=data).get_data(as_text=True)
+        self.assertIn("กรุณากรอก RB เป็นตัวเลข", body)
+
+    def test_divider_values_stay_identical(self):
+        body = self.client.post("/calculate", data=self.divider).get_data(as_text=True)
+        self.assertIn("1.230", body)
+        self.assertIn("8.052", body)
