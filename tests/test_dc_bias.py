@@ -3,9 +3,11 @@ from dataclasses import replace
 
 from dc_bias import (
     DcBiasInput,
+    EmitterBiasInput,
     FixedBiasInput,
     ValidationError,
     calculate_dc_bias,
+    calculate_emitter_bias,
     calculate_fixed_bias,
     classify_operating_point,
     classify_region,
@@ -115,3 +117,28 @@ class TestClassifyOperatingPoint(unittest.TestCase):
         self.assertEqual(classify_operating_point(1e-5, 0.199)[0], "saturation")
         self.assertEqual(classify_operating_point(1e-5, 0.2)[0], "near-saturation")
         self.assertEqual(classify_operating_point(1e-5, 0.5)[0], "active")
+
+
+class TestEmitterBias(unittest.TestCase):
+    def test_reference_case(self):
+        res = calculate_emitter_bias(EmitterBiasInput(12.0, 1e6, 2.2e3, 1e3, 100.0, 0.70))
+        self.assertAlmostEqual(res.ib, 1.026339691e-5, places=12)
+        self.assertAlmostEqual(res.ic, 1.026339691e-3, places=12)
+        self.assertAlmostEqual(res.ie, 1.036603088e-3, places=12)
+        self.assertAlmostEqual(res.ve, 1.036603088, places=8)
+        self.assertAlmostEqual(res.vb, 1.736603088, places=8)
+        self.assertAlmostEqual(res.vc, 9.742052679, places=8)
+        self.assertAlmostEqual(res.vce, 8.705449591, places=8)
+        self.assertEqual(res.region, "active")
+
+    def test_larger_re_lowers_ic(self):
+        one_k = calculate_emitter_bias(EmitterBiasInput(12.0, 1e6, 2.2e3, 1e3, 100.0, 0.70))
+        two_k = calculate_emitter_bias(EmitterBiasInput(12.0, 1e6, 2.2e3, 2e3, 100.0, 0.70))
+        self.assertLess(two_k.ic, one_k.ic)
+        self.assertAlmostEqual(two_k.ic, 0.9400998336e-3, places=12)
+        self.assertAlmostEqual(two_k.vce, 8.032778702, places=8)
+
+    def test_zero_re_is_rejected(self):
+        with self.assertRaises(ValidationError) as ctx:
+            calculate_emitter_bias(EmitterBiasInput(12.0, 1e6, 2.2e3, 0.0, 100.0, 0.70))
+        self.assertIn("RE ต้องมากกว่า 0", str(ctx.exception))

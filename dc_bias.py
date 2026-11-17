@@ -53,6 +53,16 @@ class FixedBiasInput:
 
 
 @dataclass(frozen=True)
+class EmitterBiasInput:
+    vcc: float
+    rb: float
+    rc: float
+    re: float
+    beta: float
+    vbe: float
+
+
+@dataclass(frozen=True)
 class BiasResult:
     ib: float
     ic: float
@@ -173,6 +183,42 @@ def calculate_fixed_bias(inp: FixedBiasInput) -> BiasResult:
     vb = inp.vbe
     vc = inp.vcc - ic * inp.rc
     vce = vc
+
+    region, warnings = classify_operating_point(ib, vce)
+    return BiasResult(
+        ib=ib,
+        ic=ic,
+        ie=ie,
+        vb=vb,
+        ve=ve,
+        vc=vc,
+        vce=vce,
+        region=region,
+        warnings=warnings,
+    )
+
+
+def calculate_emitter_bias(inp: EmitterBiasInput) -> BiasResult:
+    if inp.vcc <= 0:
+        raise ValidationError("VCC ต้องมากกว่า 0")
+    if inp.rb <= 0:
+        raise ValidationError("RB ต้องมากกว่า 0")
+    if inp.rc <= 0:
+        raise ValidationError("RC ต้องมากกว่า 0")
+    if inp.re <= 0:
+        raise ValidationError("RE ต้องมากกว่า 0")
+    if inp.beta <= 0:
+        raise ValidationError("β ต้องมากกว่า 0")
+    if not 0 < inp.vbe < inp.vcc:
+        raise ValidationError("VBE ต้องมากกว่า 0 และน้อยกว่า VCC")
+
+    ib = (inp.vcc - inp.vbe) / (inp.rb + (inp.beta + 1.0) * inp.re)
+    ic = inp.beta * ib
+    ie = (inp.beta + 1.0) * ib
+    ve = ie * inp.re
+    vb = ve + inp.vbe
+    vc = inp.vcc - ic * inp.rc
+    vce = vc - ve
 
     region, warnings = classify_operating_point(ib, vce)
     return BiasResult(
