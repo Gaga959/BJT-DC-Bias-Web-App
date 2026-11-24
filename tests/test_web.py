@@ -1,7 +1,9 @@
 import unittest
+from unittest import mock
 
 from app import _diagram_labels, _status_note, _to_ohms, create_app
 from dc_bias import DcBiasInput, calculate_dc_bias
+from spice_engine import find_ngspice
 
 
 class TestHomePage(unittest.TestCase):
@@ -14,8 +16,13 @@ class TestHomePage(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         for field in ("vcc", "r1", "r2", "rc", "re", "beta", "vbe"):
             self.assertIn(f'name="{field}"', body)
-        self.assertIn('name="unit"', body)
         self.assertIn("Calculate DC Bias", body)
+
+    def test_each_resistor_has_its_own_unit_select(self):
+        body = self.client.get("/").get_data(as_text=True)
+        for field in ("r1", "r2", "rc", "re", "rl"):
+            self.assertIn(f'name="{field}_unit"', body)
+        self.assertNotIn('name="unit"', body)
 
     def test_unit_select_offers_kohm_ohm_and_mohm(self):
         body = self.client.get("/").get_data(as_text=True)
@@ -28,7 +35,7 @@ class TestCalculateRoute(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()
         self.valid = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
-                      "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+                      "re": "1", "beta": "100", "vbe": "0.70"}
 
     def test_valid_input_shows_computed_values(self):
         res = self.client.post("/calculate", data=self.valid)
@@ -55,9 +62,9 @@ class TestCalculateRoute(unittest.TestCase):
 
     def test_kohm_and_ohm_differ(self):
         kohm = self.client.post("/calculate", data=self.valid).get_data(as_text=True)
-        ohm = self.client.post("/calculate", data=dict(self.valid, r1="100", unit="ohm")).get_data(as_text=True)
-        self.assertIn("12.30", kohm)
-        self.assertIn("12298.58", ohm)
+        ohm = self.client.post("/calculate", data=dict(self.valid, r1="100", r1_unit="ohm")).get_data(as_text=True)
+        self.assertIn("12.30", kohm)      # IB (µA) เมื่อ R1 = 100 kΩ
+        self.assertIn("111.23", ohm)      # IB (µA) เมื่อ R1 = 100 Ω
 
     def test_empty_beta_shows_error(self):
         body = self.client.post("/calculate", data=dict(self.valid, beta="")).get_data(as_text=True)
@@ -77,10 +84,10 @@ class TestCalculateRoute(unittest.TestCase):
 
     def test_mohm_matches_kohm_for_same_physical_value(self):
         base = {"mode": "fixed", "vcc": "12", "rb": "1000", "rc": "2.2",
-                "beta": "100", "vbe": "0.70", "unit": "kohm"}
+                "beta": "100", "vbe": "0.70"}
         kohm = self.client.post("/calculate", data=base).get_data(as_text=True)
         mohm = self.client.post(
-            "/calculate", data=dict(base, rb="1", rc="0.0022", unit="mohm")
+            "/calculate", data=dict(base, rb="1", rc="0.0022", rb_unit="mohm", rc_unit="mohm")
         ).get_data(as_text=True)
         for expected in ("1.130", "9.514"):
             self.assertIn(expected, kohm)
@@ -94,7 +101,7 @@ class TestResultsPresentation(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()
         self.valid = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
-                      "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+                      "re": "1", "beta": "100", "vbe": "0.70"}
 
     def test_shows_intermediate_values_in_details(self):
         body = self.client.post("/calculate", data=self.valid).get_data(as_text=True)
@@ -121,24 +128,24 @@ class TestResultsPresentation(unittest.TestCase):
 class TestDiagramLabels(unittest.TestCase):
     def test_defaults_use_kohm_unit(self):
         labels = _diagram_labels({"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
-                                  "re": "1", "beta": "100", "unit": "kohm"})
+                                  "re": "1", "beta": "100"})
         self.assertEqual(labels["vcc"], "12 V")
         self.assertEqual(labels["r1"], "100 kΩ")
         self.assertEqual(labels["beta"], "β = 100")
 
     def test_ohm_unit_changes_suffix(self):
         labels = _diagram_labels({"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
-                                  "re": "1", "beta": "100", "unit": "ohm"})
+                                  "re": "1", "beta": "100", "r1_unit": "ohm"})
         self.assertEqual(labels["r1"], "100 Ω")
 
     def test_mohm_unit_changes_suffix(self):
         labels = _diagram_labels({"vcc": "12", "r1": "1", "r2": "22", "rc": "2.2",
-                                  "re": "1", "beta": "100", "unit": "mohm"})
+                                  "re": "1", "beta": "100", "r1_unit": "mohm"})
         self.assertEqual(labels["r1"], "1 MΩ")
 
     def test_blank_field_becomes_dash(self):
         labels = _diagram_labels({"vcc": "12", "r1": "", "r2": "22", "rc": "2.2",
-                                  "re": "1", "beta": "100", "unit": "kohm"})
+                                  "re": "1", "beta": "100"})
         self.assertEqual(labels["r1"], "—")
 
 
@@ -159,7 +166,7 @@ class TestSingleScreenLayout(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()
         self.valid = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2",
-                      "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+                      "re": "1", "beta": "100", "vbe": "0.70"}
 
     def test_get_renders_three_panels_and_svg(self):
         body = self.client.get("/").get_data(as_text=True)
@@ -179,7 +186,7 @@ class TestSingleScreenLayout(unittest.TestCase):
         self.assertNotIn("100 kΩ", body)
 
     def test_ohm_mode_updates_circuit_labels(self):
-        body = self.client.post("/calculate", data=dict(self.valid, unit="ohm")).get_data(as_text=True)
+        body = self.client.post("/calculate", data=dict(self.valid, r1_unit="ohm")).get_data(as_text=True)
         self.assertIn("100 Ω", body)
         self.assertNotIn("100 kΩ", body)
 
@@ -220,9 +227,9 @@ class TestModeSelection(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()
         self.divider = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22",
-                        "rc": "2.2", "re": "1", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+                        "rc": "2.2", "re": "1", "beta": "100", "vbe": "0.70"}
         self.fixed = {"mode": "fixed", "vcc": "12", "rb": "1000",
-                      "rc": "2.2", "beta": "100", "vbe": "0.70", "unit": "kohm"}
+                      "rc": "2.2", "beta": "100", "vbe": "0.70"}
         self.emitter = dict(self.fixed, mode="emitter", re="1")
 
     def test_tabs_link_each_mode(self):
@@ -295,7 +302,7 @@ class TestModeSelection(unittest.TestCase):
 
     def test_mohm_selection_survives_post(self):
         body = self.client.post(
-            "/calculate", data=dict(self.fixed, rb="1", unit="mohm")
+            "/calculate", data=dict(self.fixed, rb="1", rb_unit="mohm")
         ).get_data(as_text=True)
         self.assertIn('value="mohm" selected', body)
         self.assertIn("1 MΩ", body)
@@ -350,3 +357,147 @@ class TestModeSchematics(unittest.TestCase):
     def test_fixed_shows_rb_value_in_schematic(self):
         body = self.client.get("/?mode=fixed").get_data(as_text=True)
         self.assertIn("1000 kΩ", body)
+
+
+class TestPerResistorUnits(unittest.TestCase):
+    """Each resistor carries its own unit; they never affect each other."""
+
+    def setUp(self):
+        self.client = create_app().test_client()
+        self.base = {"mode": "divider", "vcc": "12", "r1": "100", "r2": "22",
+                     "rc": "2.2", "re": "1", "beta": "100", "vbe": "0.70"}
+
+    def test_mixed_units_give_the_same_physical_result(self):
+        base = self.client.post("/calculate", data=self.base).get_data(as_text=True)
+        mixed = self.client.post(
+            "/calculate",
+            data=dict(self.base, r1="0.1", r1_unit="mohm",
+                      r2="22000", r2_unit="ohm",
+                      rc="2200", rc_unit="ohm",
+                      re="0.001", re_unit="mohm"),
+        ).get_data(as_text=True)
+        for expected in ("1.230", "8.052", "12.30", "1.942"):
+            self.assertIn(expected, base)
+            self.assertIn(expected, mixed)
+
+    def test_each_select_keeps_its_own_choice(self):
+        body = self.client.post(
+            "/calculate",
+            data=dict(self.base, r1_unit="ohm", rc_unit="mohm", re_unit="kohm"),
+        ).get_data(as_text=True)
+        self.assertEqual(body.count('value="ohm" selected'), 1)
+        self.assertEqual(body.count('value="mohm" selected'), 1)
+        self.assertIn('name="r1_unit"', body)
+        self.assertIn('name="rc_unit"', body)
+
+    def test_invalid_unit_names_the_offending_field(self):
+        body = self.client.post(
+            "/calculate", data=dict(self.base, rc_unit="farad")
+        ).get_data(as_text=True)
+        self.assertIn("หน่วยของ RC ไม่ถูกต้อง", body)
+
+    def test_missing_unit_falls_back_to_kohm(self):
+        body = self.client.post("/calculate", data=self.base).get_data(as_text=True)
+        self.assertIn("100 kΩ", body)
+
+    def test_circuit_labels_use_each_field_unit(self):
+        body = self.client.post(
+            "/calculate",
+            data=dict(self.base, r1="1", r1_unit="mohm", rc="2200", rc_unit="ohm"),
+        ).get_data(as_text=True)
+        self.assertIn("1 MΩ", body)
+        self.assertIn("2200 Ω", body)
+
+
+NGSPICE = find_ngspice()
+requires_ngspice = unittest.skipIf(NGSPICE is None, "ngspice not installed")
+
+
+class TestSimulatorRoutes(unittest.TestCase):
+    def setUp(self):
+        self.client = create_app().test_client()
+        self.payload = {"mode": "divider", "analysis": "dc", "vcc": "12",
+                        "r1": "100", "r2": "22", "rc": "2.2", "re": "1",
+                        "beta": "100", "vbe": "0.70", "cin": "10", "cout": "10",
+                        "rl": "10", "amp": "10", "freq": "1000"}
+
+    def test_page_exposes_analysis_tabs_and_run_button(self):
+        body = self.client.get("/").get_data(as_text=True)
+        for label in (">DC<", ">AC<", ">Transient<", "Run Simulation"):
+            self.assertIn(label, body)
+        self.assertIn('formaction="/simulate"', body)
+
+    def test_non_divider_mode_reports_unsupported(self):
+        body = self.client.post(
+            "/simulate", data=dict(self.payload, mode="fixed")
+        ).get_data(as_text=True)
+        self.assertIn("รองรับเฉพาะวงจร CE Voltage Divider", body)
+
+    def test_zero_re_reports_error_and_no_success(self):
+        body = self.client.post(
+            "/simulate", data=dict(self.payload, re="0")
+        ).get_data(as_text=True)
+        self.assertIn("RE ต้องมากกว่า 0", body)
+        self.assertNotIn('class="run-ok"', body)
+
+    def test_missing_engine_is_reported(self):
+        with mock.patch("spice_engine.find_ngspice", return_value=None):
+            body = self.client.post(
+                "/simulate", data=self.payload
+            ).get_data(as_text=True)
+        self.assertIn("ไม่พบ ngspice", body)
+        self.assertNotIn('class="run-ok"', body)
+
+    @requires_ngspice
+    def test_dc_run_shows_spice_values_and_provenance(self):
+        body = self.client.post(
+            "/simulate", data=dict(self.payload, analysis="dc")
+        ).get_data(as_text=True)
+        self.assertIn("SPICE · ngspice .op", body)
+        self.assertIn("Success", body)
+        self.assertIn("QNPN", body)
+        self.assertIn("ngspice-", body)
+        self.assertIn('class="run-ok"', body)
+        self.assertIn("Netlist ที่ส่งให้ ngspice", body)
+
+    @requires_ngspice
+    def test_ac_run_draws_a_real_plot(self):
+        body = self.client.post(
+            "/simulate", data=dict(self.payload, analysis="ac")
+        ).get_data(as_text=True)
+        self.assertIn('class="plot"', body)
+        self.assertIn("Midband gain", body)
+        self.assertIn("ngspice .ac", body)
+
+    @requires_ngspice
+    def test_tran_run_draws_waveforms(self):
+        body = self.client.post(
+            "/simulate", data=dict(self.payload, analysis="tran")
+        ).get_data(as_text=True)
+        self.assertIn('class="plot"', body)
+        self.assertIn("ngspice .tran", body)
+        self.assertIn("กลับเฟส 180°", body)
+
+    @requires_ngspice
+    def test_changing_re_changes_the_spice_result(self):
+        before = self.client.post(
+            "/simulate", data=dict(self.payload, analysis="dc")
+        ).get_data(as_text=True)
+        after = self.client.post(
+            "/simulate", data=dict(self.payload, analysis="dc", re="2.2")
+        ).get_data(as_text=True)
+        self.assertNotEqual(before, after)
+
+    @requires_ngspice
+    def test_mixed_units_do_not_change_the_spice_result(self):
+        base = self.client.post(
+            "/simulate", data=dict(self.payload, analysis="dc")
+        ).get_data(as_text=True)
+        mixed = self.client.post(
+            "/simulate",
+            data=dict(self.payload, analysis="dc", r1="0.1", r1_unit="mohm",
+                      rc="2200", rc_unit="ohm", rl="10000", rl_unit="ohm"),
+        ).get_data(as_text=True)
+        for expected in ("1.949", "9.191", "1.278"):
+            self.assertIn(expected, base)
+            self.assertIn(expected, mixed)

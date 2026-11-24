@@ -232,12 +232,12 @@ button:hover {
 }
 
 .schematic .lbl text {
-  font-size: 10.5px;
+  font-size: 11.5px;
   fill: var(--muted);
 }
 
 .schematic .lbl-value {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   fill: var(--navy);
 }
@@ -357,6 +357,199 @@ button:hover {
   margin: 8px 0 0;
   font-size: 11.5px;
   color: var(--muted);
+}
+
+/* ---- lab 04 additions ---- */
+
+.engine-pill {
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f4f9fd;
+  color: var(--blue);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.engine-pill.is-off {
+  border-color: #e7c9c4;
+  background: #fdecea;
+  color: #7f1d1a;
+}
+
+.hint {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.unit-select {
+  flex: 0 0 76px;
+  width: 76px;
+  padding: 6px 6px;
+  font-size: 13px;
+}
+
+.group {
+  margin: 4px 0 0;
+  padding: 8px 10px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.group legend {
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.form-actions button {
+  flex: 1 1 140px;
+  margin-top: 0;
+}
+
+.btn-secondary {
+  background: #e8f1f8;
+  color: var(--navy);
+  border: 1px solid var(--line);
+}
+
+.btn-secondary:hover {
+  background: #d8e8f4;
+  color: var(--navy);
+}
+
+.analysis-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f4f9fd;
+}
+
+.analysis-tab {
+  flex: 1;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--blue);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.analysis-tab:hover {
+  background: #e2eef8;
+  color: var(--navy);
+}
+
+.analysis-tab.is-active {
+  background: var(--navy);
+  color: #fff;
+}
+
+.analysis-hint {
+  margin: 6px 0 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.plot-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.plot {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.plot-empty {
+  margin: 0;
+  padding: 18px 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.engine-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.engine-status > div {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f7fbff;
+}
+
+.engine-status dt {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.engine-status dd {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--navy);
+  word-break: break-word;
+}
+
+.run-ok {
+  color: var(--ok) !important;
+}
+
+.run-error {
+  color: var(--danger) !important;
+}
+
+.result-block {
+  margin-bottom: 12px;
+}
+
+.result-source {
+  margin: 0 0 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.netlist {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f7fbff;
+  color: #274b66;
+  font: 11px/1.45 "Cascadia Mono", Consolas, monospace;
 }
 
 /* ---- responsive ---- */

@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BJT DC Bias Calculator</title>
+  <title>BJT Amplifier Simulator</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <main class="page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">ENG29 2121 · Lab 03</p>
-        <h1>BJT DC Bias Calculator</h1>
-        <p class="subtitle">วงจรขยาย Common-Emitter — {{ mode_label }}</p>
+        <p class="eyebrow">ENG29 2121 · Lab 04</p>
+        <h1>BJT Amplifier Simulator</h1>
+        <p class="subtitle">Common-Emitter — {{ mode_label }} · DC / AC / Transient จาก ngspice</p>
       </div>
+      <p class="engine-pill{% if not sim.engine.available %} is-off{% endif %}">
+        {% if sim.engine.available %}Engine: {{ sim.engine.version }}{% else %}Engine: ไม่พบ ngspice{% endif %}
+      </p>
     </header>
 
     {% if error %}
@@ -21,13 +24,13 @@
     {% endif %}
 
     <div class="workspace">
-      <section class="panel panel-input">
+      <section class="panel panel-input panel-circuit">
         <header class="panel-head">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="3.5"/>
-            <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>
+            <path d="M3 12h5M16 12h5M12 3v5M12 16v5"/>
+            <circle cx="12" cy="12" r="3.2"/>
           </svg>
-          <h2>Input Parameters</h2>
+          <h2>Circuit &amp; Parameters</h2>
         </header>
 
         <nav class="mode-tabs" aria-label="เลือกวงจรไบแอส">
@@ -36,7 +39,7 @@
           {% endfor %}
         </nav>
 
-        <form class="bias-form" method="post" action="/calculate">
+        <form class="bias-form" id="param-form" method="post" action="/calculate">
           <input type="hidden" name="mode" value="{{ mode }}">
 
           <div class="field">
@@ -47,57 +50,25 @@
             </span>
           </div>
 
-          {% if mode == 'divider' %}
+          {% for key in resistor_fields %}
+          {% if key == 'r1' %}{% set label = 'R1 — ตัวต้านทานบน' %}
+          {% elif key == 'r2' %}{% set label = 'R2 — ตัวต้านทานล่าง' %}
+          {% elif key == 'rc' %}{% set label = 'RC — Collector' %}
+          {% elif key == 're' %}{% set label = 'RE — Emitter' %}
+          {% elif key == 'rl' %}{% set label = 'RL — Load' %}
+          {% else %}{% set label = 'RB — Base' %}{% endif %}
           <div class="field">
-            <label for="r1">R1 — ตัวต้านทานบน</label>
+            <label for="{{ key }}">{{ label }}</label>
             <span class="field-input">
-              <input id="r1" name="r1" type="text" inputmode="decimal" value="{{ form.r1 }}">
-            </span>
-          </div>
-
-          <div class="field">
-            <label for="r2">R2 — ตัวต้านทานล่าง</label>
-            <span class="field-input">
-              <input id="r2" name="r2" type="text" inputmode="decimal" value="{{ form.r2 }}">
-            </span>
-          </div>
-          {% endif %}
-
-          {% if mode in ('fixed', 'emitter') %}
-          <div class="field">
-            <label for="rb">RB — Base</label>
-            <span class="field-input">
-              <input id="rb" name="rb" type="text" inputmode="decimal" value="{{ form.rb }}">
-            </span>
-          </div>
-          {% endif %}
-
-          <div class="field">
-            <label for="rc">RC — Collector</label>
-            <span class="field-input">
-              <input id="rc" name="rc" type="text" inputmode="decimal" value="{{ form.rc }}">
-            </span>
-          </div>
-
-          {% if mode in ('divider', 'emitter') %}
-          <div class="field">
-            <label for="re">RE — Emitter</label>
-            <span class="field-input">
-              <input id="re" name="re" type="text" inputmode="decimal" value="{{ form.re }}">
-            </span>
-          </div>
-          {% endif %}
-
-          <div class="field">
-            <label for="unit">หน่วยตัวต้านทาน</label>
-            <span class="field-input">
-              <select id="unit" name="unit">
-                <option value="kohm" {% if form.unit == 'kohm' %}selected{% endif %}>kΩ</option>
-                <option value="ohm" {% if form.unit == 'ohm' %}selected{% endif %}>Ω</option>
-                <option value="mohm" {% if form.unit == 'mohm' %}selected{% endif %}>MΩ</option>
+              <input id="{{ key }}" name="{{ key }}" type="text" inputmode="decimal" value="{{ form[key] if form[key] is defined else '' }}">
+              <select id="{{ key }}_unit" name="{{ key }}_unit" class="unit-select" aria-label="หน่วยของ {{ key|upper }}">
+                {% for option in unit_options[key] %}
+                <option value="{{ option.value }}"{{ option.selected|safe }}>{{ option.symbol }}</option>
+                {% endfor %}
               </select>
             </span>
           </div>
+          {% endfor %}
 
           <div class="field">
             <label for="beta">β — Current Gain</label>
@@ -107,82 +78,146 @@
           </div>
 
           <div class="field">
-            <label for="vbe">VBE</label>
+            <label for="vbe">VBE <span class="hint">(analytical)</span></label>
             <span class="field-input">
               <input id="vbe" name="vbe" type="text" inputmode="decimal" value="{{ form.vbe }}">
               <span class="unit">V</span>
             </span>
           </div>
 
-          <button type="submit">Calculate DC Bias</button>
-        </form>
-      </section>
+          {% if spice_supported %}
+          <fieldset class="group">
+            <legend>สัญญาณและคัปปลิ้ง (SPICE)</legend>
 
-      <section class="panel panel-circuit">
-        <header class="panel-head">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M3 12h5M16 12h5M12 3v5M12 16v5"/>
-            <circle cx="12" cy="12" r="3.2"/>
-          </svg>
-          <h2>Circuit: Common-Emitter Amplifier</h2>
-        </header>
+            <div class="field">
+              <label for="cin">CIN — Input coupling</label>
+              <span class="field-input">
+                <input id="cin" name="cin" type="text" inputmode="decimal" value="{{ form.cin }}">
+                <span class="unit">µF</span>
+              </span>
+            </div>
+
+            <div class="field">
+              <label for="cout">COUT — Output coupling</label>
+              <span class="field-input">
+                <input id="cout" name="cout" type="text" inputmode="decimal" value="{{ form.cout }}">
+                <span class="unit">µF</span>
+              </span>
+            </div>
+
+            <div class="field">
+              <label for="amp">Source — Amplitude (peak)</label>
+              <span class="field-input">
+                <input id="amp" name="amp" type="text" inputmode="decimal" value="{{ form.amp }}">
+                <span class="unit">mV</span>
+              </span>
+            </div>
+
+            <div class="field">
+              <label for="freq">Source — Frequency</label>
+              <span class="field-input">
+                <input id="freq" name="freq" type="text" inputmode="decimal" value="{{ form.freq }}">
+                <span class="unit">Hz</span>
+              </span>
+            </div>
+          </fieldset>
+          {% endif %}
+
+          <div class="form-actions">
+            <button type="submit" formaction="/calculate" class="btn-secondary">Calculate DC Bias</button>
+            {% if spice_supported %}
+            <button type="submit" formaction="/simulate" name="analysis" value="{{ analysis }}" class="btn-primary">Run Simulation</button>
+            {% endif %}
+          </div>
+        </form>
 
         {% if mode == 'divider' %}
-        <svg class="schematic" viewBox="0 0 360 350" role="img"
-             aria-label="วงจรขยาย BJT แบบ {{ mode_label }} พร้อมค่าที่กรอก">
+        <svg class="schematic" viewBox="0 0 440 360" role="img"
+             aria-label="วงจรขยาย BJT แบบ {{ mode_label }} พร้อม Cin, Cout และ RL ตามค่าที่กรอก">
           <g class="wire" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M70 44H290"/>
-            <path d="M100 44V70M100 124V150"/>
-            <path d="M100 150H152"/>
-            <path d="M100 150V176M100 230V266"/>
-            <path d="M100 266V276"/>
-            <path d="M187 129V96H250"/>
-            <path d="M250 44V52"/>
-            <path d="M187 171V250M186 300V320"/>
+            <path d="M90 40H310"/>
+            <path d="M170 40V44M170 96V150"/>
+            <path d="M170 150H200"/>
+            <path d="M170 150V206M170 246V250"/>
+            <path d="M70 150V182M70 218V250"/>
+            <path d="M70 150H124"/>
+            <path d="M136 150H170"/>
+            <path d="M261 120V100H310"/>
+            <path d="M310 100V96M310 44V40"/>
+            <path d="M310 100H344"/>
+            <path d="M356 100H400"/>
+            <path d="M400 100V160M400 200V204"/>
+            <path d="M261 180V230M261 286V330"/>
           </g>
 
           <g class="res" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
-            <polyline class="res-zigzag" points="100,70 107,77.7 93,85.4 107,93.1 93,100.9 107,108.6 93,116.3 100,124"/>
-            <polyline class="res-zigzag" points="100,176 107,183.7 93,191.4 107,199.1 93,206.9 107,214.6 93,222.3 100,230"/>
-            <polyline class="res-zigzag" points="250,52 257,58.3 243,64.6 257,70.9 243,77.1 257,83.4 243,89.7 250,96"/>
-            <polyline class="res-zigzag" points="186,250 193,257.1 179,264.3 193,271.4 179,278.6 193,285.7 179,292.9 186,300"/>
+            <polyline class="res-zigzag" points="170,44 177,50.6 163,57.3 177,63.9 163,70.6 177,77.2 163,83.9 170,90.6 170,96"/>
+            <polyline class="res-zigzag" points="170,206 177,212.6 163,219.3 177,225.9 163,232.6 177,239.2 163,245.9 170,246"/>
+            <polyline class="res-zigzag" points="310,44 317,50.6 303,57.3 317,63.9 303,70.6 317,77.2 303,83.9 310,90.6 310,96"/>
+            <polyline class="res-zigzag" points="261,230 268,236.6 254,243.3 268,249.9 254,256.6 268,263.2 254,269.9 261,276.6 261,286"/>
+            <polyline class="res-zigzag" points="400,160 407,166.6 393,173.3 407,179.9 393,186.6 407,193.2 393,199.9 400,200"/>
           </g>
 
-          <circle class="q1-circle" cx="166" cy="150" r="30"/>
+          <g class="cap" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M124 136V164M136 136V164"/>
+            <path d="M344 86V114M356 86V114"/>
+          </g>
+
+          <g class="source" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="70" cy="200" r="18"/>
+            <path d="M60 200c2-6 6-6 8 0s6 6 8 0" stroke-width="1.8"/>
+          </g>
+
+          <circle class="q1-circle" cx="230" cy="150" r="30"/>
 
           <g class="q1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M152 134V166"/>
-            <path d="M152 143L187 129"/>
-            <path d="M152 157L187 171"/>
-            <path d="M187 171L177 170L180 162" fill="currentColor" stroke="none"/>
+            <path d="M216 134V166"/>
+            <path d="M216 143L251 129"/>
+            <path d="M216 157L251 171"/>
+            <path d="M251 171L241 170L244 162" fill="currentColor" stroke="none"/>
           </g>
 
           <g class="ground" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M88 276H112M92 282H108M96 288H104"/>
-            <path d="M174 320H198M178 326H194M182 332H190"/>
+            <path d="M158 250H182M162 256H178M166 262H174"/>
+            <path d="M58 250H82M62 256H78M66 262H74"/>
+            <path d="M249 330H273M253 336H269M257 342H265"/>
+            <path d="M388 204H412M392 210H408M396 216H404"/>
           </g>
 
-          <circle class="dot" cx="100" cy="150" r="3" fill="currentColor"/>
-          <circle class="dot" cx="187" cy="96" r="3" fill="currentColor"/>
+          <circle class="dot" cx="170" cy="150" r="3" fill="currentColor"/>
+          <circle class="dot" cx="310" cy="100" r="3" fill="currentColor"/>
+          <circle class="dot" cx="400" cy="100" r="3" fill="currentColor"/>
 
           <g class="lbl" text-anchor="middle">
-            <text class="lbl-major" x="180" y="26">VCC = {{ diagram.vcc }}</text>
+            <text class="lbl-major" x="200" y="24">VCC = {{ diagram.vcc }}</text>
           </g>
 
           <g class="lbl" text-anchor="end">
-            <text x="84" y="86">R1</text>
-            <text class="lbl-value" x="84" y="102">{{ diagram.r1 }}</text>
-            <text x="84" y="192">R2</text>
-            <text class="lbl-value" x="84" y="208">{{ diagram.r2 }}</text>
+            <text x="156" y="62">R1</text>
+            <text class="lbl-value" x="156" y="78">{{ diagram.r1 }}</text>
+            <text x="156" y="176">R2</text>
+            <text class="lbl-value" x="156" y="192">{{ diagram.r2 }}</text>
+          </g>
+
+          <g class="lbl" text-anchor="end">
+            <text x="296" y="60">RC</text>
+            <text class="lbl-value" x="296" y="76">{{ diagram.rc }}</text>
           </g>
 
           <g class="lbl">
-            <text x="266" y="60">RC</text>
-            <text class="lbl-value" x="266" y="76">{{ diagram.rc }}</text>
-            <text x="202" y="264">RE</text>
-            <text class="lbl-value" x="202" y="280">{{ diagram.re }}</text>
-            <text x="202" y="120">Q1 · NPN</text>
-            <text class="lbl-value" x="202" y="136">{{ diagram.beta }}</text>
+            <text x="277" y="252">RE</text>
+            <text class="lbl-value" x="277" y="268">{{ diagram.re }}</text>
+            <text x="416" y="128">RL</text>
+            <text class="lbl-value" x="416" y="144">{{ diagram.rl }}</text>
+          </g>
+
+          <g class="lbl" text-anchor="middle">
+            <text x="130" y="128">CIN · {{ diagram.cin }}</text>
+            <text x="350" y="130">COUT · {{ diagram.cout }}</text>
+            <text x="230" y="214">Q1 · NPN</text>
+            <text class="lbl-value" x="230" y="228">{{ diagram.beta }}</text>
+            <text x="70" y="234">Vin</text>
+            <text x="400" y="86">Vout</text>
           </g>
         </svg>
         {% elif mode == 'fixed' %}
@@ -289,36 +324,165 @@
         {% endif %}
       </section>
 
+      <section class="panel panel-sim">
+        <header class="panel-head">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/>
+          </svg>
+          <h2>Simulation &amp; Plots</h2>
+        </header>
+
+        {% if spice_supported %}
+        <div class="analysis-tabs" role="group" aria-label="เลือกการวิเคราะห์">
+          {% for key, label in analysis_labels.items() %}
+          <button type="submit" form="param-form" formaction="/simulate" name="analysis" value="{{ key }}"
+                  class="analysis-tab{% if key == analysis %} is-active{% endif %}">{{ label }}</button>
+          {% endfor %}
+        </div>
+        <p class="analysis-hint">{{ analysis_hint }}</p>
+
+        <div class="plot-wrap">
+          {% if sim.status == 'ok' and sim.plot %}
+            {{ sim.plot|safe }}
+          {% elif sim.status == 'error' %}
+            <p class="plot-empty">ยังไม่มีกราฟ — การรันครั้งล่าสุดไม่สำเร็จ</p>
+          {% elif sim.status == 'ok' and analysis == 'dc' %}
+            <p class="plot-empty">โหมด DC แสดงผลในตาราง Operating Point ด้านขวา</p>
+          {% else %}
+            <p class="plot-empty">กด Run Simulation เพื่อเรียก ngspice และวาดกราฟจากผลจริง</p>
+          {% endif %}
+        </div>
+
+        <dl class="engine-status">
+          <div>
+            <dt>Engine</dt>
+            <dd>{% if sim.engine.available %}{{ sim.engine.version }}{% else %}ไม่พร้อมใช้งาน{% endif %}</dd>
+          </div>
+          <div>
+            <dt>Model</dt>
+            <dd>{{ sim.engine.model }}</dd>
+          </div>
+          <div>
+            <dt>Run status</dt>
+            <dd class="run-{{ sim.status }}">
+              {% if sim.status == 'ok' %}Success · {{ sim.run.duration }}{% elif sim.status == 'error' %}Error{% else %}Idle{% endif %}
+            </dd>
+          </div>
+        </dl>
+
+        {% if sim.run %}
+        <details class="working">
+          <summary>Netlist ที่ส่งให้ ngspice</summary>
+          <pre class="netlist">{{ sim.run.netlist }}</pre>
+        </details>
+        {% endif %}
+        {% else %}
+        <p class="plot-empty">โหมด {{ mode_label }} ใช้ผล Analytical จาก dc_bias.py — การจำลอง SPICE ทำเฉพาะวงจร CE Voltage Divider</p>
+        {% endif %}
+      </section>
+
       <section class="panel panel-results">
         <header class="panel-head">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/>
           </svg>
-          <h2>DC Bias Results</h2>
+          <h2>Engineering Results</h2>
           <p class="mode-badge">{{ mode_label }}</p>
         </header>
 
+        {% if sim.status == 'ok' and sim.op %}
+        <div class="result-block">
+          <p class="result-source">SPICE · ngspice .op</p>
+          <table class="results-table">
+            <tbody>
+              <tr><th scope="row">V<sub>B</sub></th><td>{{ sim.op.vb }} V</td></tr>
+              <tr><th scope="row">V<sub>E</sub></th><td>{{ sim.op.ve }} V</td></tr>
+              <tr><th scope="row">V<sub>C</sub></th><td>{{ sim.op.vc }} V</td></tr>
+              <tr><th scope="row">V<sub>CE</sub></th><td>{{ sim.op.vce }} V</td></tr>
+              <tr><th scope="row">I<sub>B</sub></th><td>{{ sim.op.ib }} µA</td></tr>
+              <tr><th scope="row">I<sub>C</sub></th><td>{{ sim.op.ic }} mA</td></tr>
+              <tr><th scope="row">I<sub>E</sub></th><td>{{ sim.op.ie }} mA</td></tr>
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        {% if sim.status == 'ok' and sim.ac %}
+        <div class="result-block">
+          <p class="result-source">SPICE · ngspice .ac</p>
+          <table class="results-table">
+            <tbody>
+              <tr><th scope="row">Midband gain</th><td>{{ sim.ac.gain }} × ({{ sim.ac.gain_db }} dB)</td></tr>
+              <tr><th scope="row">Phase</th><td>{{ sim.ac.phase }}°</td></tr>
+              <tr><th scope="row">f<sub>L</sub> (−3 dB)</th><td>{{ sim.ac.f_low }}</td></tr>
+              <tr><th scope="row">f<sub>H</sub> (−3 dB)</th><td>{{ sim.ac.f_high }}</td></tr>
+              <tr><th scope="row">Sweep</th><td>{{ sim.ac.start }} – {{ sim.ac.stop }}</td></tr>
+            </tbody>
+          </table>
+          <p class="note">Gain วัดจาก |V(out)/V(in)| โดย Vin คือขั้วแหล่งสัญญาณก่อน CIN · {{ sim.ac.points }} จุดจาก ngspice</p>
+        </div>
+        {% endif %}
+
+        {% if sim.status == 'ok' and sim.tran %}
+        <div class="result-block">
+          <p class="result-source">SPICE · ngspice .tran</p>
+          <table class="results-table">
+            <tbody>
+              <tr><th scope="row">V<sub>in</sub> peak</th><td>{{ sim.tran.vin_peak }}</td></tr>
+              <tr><th scope="row">V<sub>out</sub> peak</th><td>{{ sim.tran.vout_peak }}</td></tr>
+              <tr><th scope="row">Gain</th><td>{{ sim.tran.gain }} ×</td></tr>
+              <tr><th scope="row">Phase</th><td>{% if sim.tran.inverted %}กลับเฟส 180°{% else %}ไม่กลับเฟส{% endif %}</td></tr>
+              <tr><th scope="row">ช่วงเวลา</th><td>{{ sim.tran.t_start }} – {{ sim.tran.t_stop }}</td></tr>
+            </tbody>
+          </table>
+          <p class="note">{{ sim.tran.points }} จุดจาก ngspice · วัดในช่วง 80% หลังเพื่อข้าม charging ของ CIN/COUT</p>
+        </div>
+        {% endif %}
+
+        {% if values %}
+        <div class="result-block">
+          <p class="result-source">Analytical · dc_bias.py (Lab 3)</p>
+          <table class="results-table">
+            <tbody>
+              <tr><th scope="row">V<sub>B</sub></th><td>{{ values.vb }} V</td></tr>
+              <tr><th scope="row">V<sub>E</sub></th><td>{{ values.ve }} V</td></tr>
+              <tr><th scope="row">V<sub>C</sub></th><td>{{ values.vc }} V</td></tr>
+              <tr><th scope="row">V<sub>CE</sub></th><td>{{ values.vce }} V</td></tr>
+              <tr><th scope="row">I<sub>B</sub></th><td>{{ values.ib }} µA</td></tr>
+              <tr><th scope="row">I<sub>C</sub></th><td>{{ values.ic }} mA</td></tr>
+              <tr><th scope="row">I<sub>E</sub></th><td>{{ values.ie }} mA</td></tr>
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        {% if not values and not sim.op and not sim.ac and not sim.tran %}
         <table class="results-table">
           <tbody>
-            <tr><th scope="row">V<sub>B</sub></th><td>{% if values %}{{ values.vb }} V{% else %}—{% endif %}</td></tr>
-            <tr><th scope="row">V<sub>E</sub></th><td>{% if values %}{{ values.ve }} V{% else %}—{% endif %}</td></tr>
-            <tr><th scope="row">V<sub>C</sub></th><td>{% if values %}{{ values.vc }} V{% else %}—{% endif %}</td></tr>
-            <tr><th scope="row">V<sub>CE</sub></th><td>{% if values %}{{ values.vce }} V{% else %}—{% endif %}</td></tr>
-            <tr><th scope="row">I<sub>B</sub></th><td>{% if values %}{{ values.ib }} µA{% else %}—{% endif %}</td></tr>
-            <tr><th scope="row">I<sub>C</sub></th><td>{% if values %}{{ values.ic }} mA{% else %}—{% endif %}</td></tr>
-            <tr><th scope="row">I<sub>E</sub></th><td>{% if values %}{{ values.ie }} mA{% else %}—{% endif %}</td></tr>
+            <tr><th scope="row">V<sub>B</sub></th><td>—</td></tr>
+            <tr><th scope="row">V<sub>E</sub></th><td>—</td></tr>
+            <tr><th scope="row">V<sub>C</sub></th><td>—</td></tr>
+            <tr><th scope="row">V<sub>CE</sub></th><td>—</td></tr>
+            <tr><th scope="row">I<sub>B</sub></th><td>—</td></tr>
+            <tr><th scope="row">I<sub>C</sub></th><td>—</td></tr>
+            <tr><th scope="row">I<sub>E</sub></th><td>—</td></tr>
           </tbody>
         </table>
+        {% endif %}
 
         {% if status %}
         <div class="status status-{{ status.tone }}">{{ status.text }}</div>
         {% else %}
-        <div class="status status-idle">กด Calculate DC Bias เพื่อคำนวณ</div>
+        <div class="status status-idle">กด Calculate DC Bias เพื่อคำนวณ หรือ Run Simulation เพื่อเรียก ngspice</div>
+        {% endif %}
+
+        {% if sim.status == 'error' %}
+        <div class="status status-danger">{{ sim.error }}</div>
         {% endif %}
 
         {% if result %}
         <details class="working">
-          <summary>วิธีคำนวณ</summary>
+          <summary>วิธีคำนวณ (Analytical)</summary>
           <dl class="values">
             {% for row in workings %}
             <div><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div>
